@@ -62,17 +62,9 @@ learning_rate_decay: 1.0e-06
 # Model definition
 #
 model:
-  # Name of model.
-  modelType: 'SiameseNetworkTemplate'
-  ##modelType: 'DeltaLayerConv1Network'
-  # If the model is the generic SiameseNetworkTemplate, then the name of the
-  # leg and head can be given here
-  legsType: '360OutputkLegs'
-  overlap_head: 'DeltaLayerConv1NetworkHead'
-  orientation_head: 'CorrelationHead'
   # size of one input image, thus input size of one leg of siamese network (heightxwidth)
   # no_channels are defined due to used inputs channels above.
-  inputShape: [64,900]
+  input_shape: [64,900]
   # leg output width
   leg_output_width: 360
   # Strides in first layer. Default is [2,2] which is useful for standard images

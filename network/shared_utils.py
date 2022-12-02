@@ -1,8 +1,47 @@
-#!/usr/bin/env python3
-# Developed by Xieyuanli Chen and Thomas Läbe
-# This file is covered by the LICENSE file in the root of this project.
-
 import numpy as np
+
+
+def read_network_config(config):
+
+    default_config = {
+        'use_depth': True,
+        'use_normals': True,
+        'use_class_probabilities': False,
+        'use_class_probabilities_pca': False,
+        'use_intensity': False,
+        'rotate_training_data': 0,
+    }
+
+    config = {**default_config, **config}
+
+    # number of channels for input
+    input_channels = 0
+    if config['use_depth']:
+      input_channels += 1
+    if config['use_normals']:
+      input_channels += 3
+    if config['use_intensity']:
+      input_channels += 1
+    if config['use_class_probabilities']:
+      if config['use_class_probabilities_pca']:
+        input_channels += 3
+      else:
+        input_channels += 20
+    
+    # input shape of model
+    input_shape = config['model']['input_shape']
+    if len(input_shape) >= 3:
+      input_shape[-1] = input_channels
+    elif len(input_shape) == 2:
+      input_shape.append(input_channels)
+
+    # update config with computed information
+    config['model']['input_shape'] = input_shape
+    config['model']['input_channels'] = input_channels
+    config['model']['input_width'] = input_shape[-2]
+    config['model']['input_height'] = input_shape[-3]
+    
+    return config
 
 
 def overlap_orientation_npz_file2string_string_nparray(npzfilenames, shuffle=True):
@@ -72,5 +111,5 @@ def overlap_orientation_npz_file2string_string_nparray(npzfilenames, shuffle=Tru
         dir2_all.extend(dir2)
         overlap_all.extend(overlap)
         orientation_all.extend(orientation)
-      
+    
     return (imgf1_all, imgf2_all, dir1_all, dir2_all, np.asarray(overlap_all), np.asarray(orientation_all))

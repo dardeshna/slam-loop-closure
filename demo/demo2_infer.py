@@ -6,7 +6,7 @@
 import yaml
 import sys, os
 import numpy as np
-sys.path.append(os.path.join(os.path.dirname(__file__), '../src/two_heads'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '../network'))
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from infer import *
@@ -55,15 +55,15 @@ if __name__ == '__main__':
   if len(sys.argv) > 1:
     config_filename = sys.argv[1]
     
-  config = yaml.load(open(config_filename))
+  config = yaml.load(open(config_filename), yaml.Loader)
   
   # set the related parameters
   network_config_filename = config['Demo2']['network_config']
   scan1_path = config['Demo2']['scan1_path']
   scan2_path = config['Demo2']['scan2_path']
 
-  network_config = yaml.load(open(network_config_filename))
+  network_config = yaml.load(open(network_config_filename), yaml.Loader)
   network_config['infer_seqs'] = config['Demo2']['infer_seqs']
   
   # start demo2
-  demo_infer(network_config, scan2_path, scan1_path)
+  demo_infer(network_config, scan1_path, scan2_path)

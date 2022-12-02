@@ -6,10 +6,9 @@ import os
 import random
 import numpy as np
 
-from keras.utils import Sequence
+from tensorflow import keras
 
-
-class ImagePairOverlapOrientationSequence(Sequence):
+class ImagePairOverlapOrientationSequence(keras.utils.Sequence):
   """ This class is responsible for loading training/validation data. It
       can be used as keras generator object in e.g. model.fit_generator.
   """
@@ -56,13 +55,12 @@ class ImagePairOverlapOrientationSequence(Sequence):
     self.batch_size = batch_size
     self.imgfilenames1 = imgfilenames1
     self.imgfilenames2 = imgfilenames2
-    self.dir1 = dir1
-    self.dir2 = dir2
-    self.overlap = overlap
-    self.orientation = orientation
+    self.dir1 = [dir1 for _ in range(len(imgfilenames1))] if isinstance(dir1, str) else dir1
+    self.dir2 = [dir2 for _ in range(len(imgfilenames1))] if isinstance(dir2, str) else dir2
+    self.overlap = np.zeros(len(imgfilenames1)) if overlap is None else overlap
+    self.orientation = np.zeros(len(imgfilenames1)) if orientation is None else orientation
     self.network_output_size = network_output_size
-    # number of pairs
-    self.n = overlap.size
+    self.n = len(imgfilenames1) # number of pairs
     self.height = height
     self.width = width
     self.no_channels = no_channels

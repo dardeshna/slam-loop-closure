@@ -6,7 +6,7 @@
 
 import yaml
 import sys, os
-sys.path.append(os.path.join(os.path.dirname(__file__), '../src/utils'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '../utils'))
 import matplotlib.pyplot as plt
 from utils import *
 import gen_depth_data as gen_depth

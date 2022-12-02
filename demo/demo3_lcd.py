@@ -8,10 +8,12 @@ import sys
 
 import yaml
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../src/utils'))
-sys.path.append(os.path.join(os.path.dirname(__file__), '../src/two_heads'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '../network'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '../utils'))
 from utils import *
 from infer import *
+
+import numpy as np
 
 import matplotlib
 matplotlib.use('TkAgg')
@@ -24,7 +26,7 @@ class AnimatedLCD(object):
   def __init__(self, configfilename, gt_poses, covs):
     """initialize the animation and data needed"""
     # Init the network
-    config = yaml.load(open(configfilename))
+    config = yaml.load(open(configfilename), yaml.Loader)
     self.infer = Infer(config)
     
     # Setup data stream
@@ -183,7 +185,7 @@ if __name__ == '__main__':
     config_filename = sys.argv[1]
   
   # load the configuration file
-  config = yaml.load(open(config_filename))
+  config = yaml.load(open(config_filename), yaml.Loader)
   
   # set the related parameters
   covariance_file = config['Demo3']['covariance_file']

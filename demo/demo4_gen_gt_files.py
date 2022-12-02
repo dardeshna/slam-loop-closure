@@ -5,11 +5,12 @@
 
 import yaml
 import sys, os
-sys.path.append(os.path.join(os.path.dirname(__file__), '../src/utils'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '../utils'))
 from utils import *
 from com_overlap_yaw import com_overlap_yaw
 from normalize_data import normalize_data
 from split_train_val import split_train_val
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import matplotlib.cm as cm
@@ -46,7 +47,7 @@ if __name__ == '__main__':
     config_filename = sys.argv[1]
   
   # load the configuration file
-  config = yaml.load(open(config_filename))
+  config = yaml.load(open(config_filename), yaml.Loader)
   
   # set the related parameters
   poses_file = config['Demo4']['poses_file']

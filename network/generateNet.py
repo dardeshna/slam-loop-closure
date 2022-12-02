@@ -1,10 +1,5 @@
-#!/usr/bin/env python3
-# Developed by Xieyuanli Chen and Thomas Läbe
-# This file is covered by the LICENSE file in the root of this project.
-# Brief: Generate a neural net for overlap detection.
-
-from keras import backend as K
 import tensorflow as tf
+from keras import backend as K
 from keras.layers import Input, Conv2D, Dense, Flatten, Reshape, Lambda, Layer
 from keras.models import Model
 from keras.regularizers import l2
@@ -134,14 +129,13 @@ def generateDeltaLayerConv1NetworkHead(encoded_l, encoded_r, config={}):
   return prediction
 
 
-def generate360OutputkLegs(left_input, right_input, input_shape=(50, 50, 1), config={},
+def generate360OutputkLegs(left_input, right_input, config={},
                            smallNet=False, trainable=True):
   """
   Generate legs like in the DeltaLayerConv1Network.
   Here we use several Conv2D layer to resize the output of leg into 360
 
   Args:
-    input_shape: A tupel with three elements which is the size of the input images.
     left_input, right_input: Two tensors of size input_shape which define the input
                              of the two legs
     config: dictionary of configuration parameters, usually from a yaml file
@@ -166,7 +160,7 @@ def generate360OutputkLegs(left_input, right_input, input_shape=(50, 50, 1), con
   # build convnet to use in each siamese 'leg'
   if (smallNet):
     finalconv = Conv2D(2, (5, 15), activation='relu',
-                       padding='valid', strides=5, input_shape=input_shape,
+                       padding='valid', strides=5,
                        name='s_conv1', kernel_regularizer=l2(2e-4), trainable=trainable)
     l = finalconv(left_input)
     r = finalconv(right_input)
@@ -176,7 +170,7 @@ def generate360OutputkLegs(left_input, right_input, input_shape=(50, 50, 1), con
     # kernel_regularizer=l2(1e-8)
     kernel_regularizer = None
     # conv1=Conv2D(64, (10, 10), activation='relu', input_shape=input_shape,
-    conv1 = Conv2D(16, (5, 15), strides=config['strides_layer1'], activation='relu', input_shape=input_shape,
+    conv1 = Conv2D(16, (5, 15), strides=config['strides_layer1'], activation='relu',
                    kernel_regularizer=kernel_regularizer, name="s_conv1", trainable=trainable)
     l = conv1(left_input)
     r = conv1(right_input)
@@ -237,7 +231,7 @@ def generate360OutputkLegs(left_input, right_input, input_shape=(50, 50, 1), con
     return (l, r)
 
   
-def generateCorrelationHead(encoded_l, encoded_r, config={})  :
+def generateCorrelationHead(encoded_l, encoded_r, config={}):
     """
       Generate a head which does correlation.
       
@@ -259,7 +253,7 @@ def generateCorrelationHead(encoded_l, encoded_r, config={})  :
     return norm_corr
 
 
-def generateSiameseNetworkTemplate(input_shape=(50, 50, 1), config={}, smallNet=False):
+def generateSiameseNetwork(input_shape, config={}, smallNet=False):
   """
   Generate a siamese network for overlap detection. Which legs and which
   head is used will be given in the config parameter.
@@ -282,17 +276,24 @@ def generateSiameseNetworkTemplate(input_shape=(50, 50, 1), config={}, smallNet=
   right_input = Input(input_shape)
   
   # The two legs
-  (encoded_l, encoded_r) = generate360OutputkLegs(left_input, right_input, input_shape, config, smallNet)
+  (encoded_l, encoded_r) = generate360OutputkLegs(left_input, right_input, config, smallNet)
+
+  # Independent leg network
+  leg = Model(inputs=left_input, outputs=encoded_l, name='leg')
   
   # The overlap head
   prediction_overlap = generateDeltaLayerConv1NetworkHead(encoded_l, encoded_r, config)
   
   # The orientation head
   prediction_orientation = generateCorrelationHead(encoded_l, encoded_r, config)
+
+  # Independent head network
+  head = Model(inputs=[encoded_l, encoded_r], outputs=[prediction_overlap, prediction_orientation], name='head')
   
   # Generate a keras model out of the input and output tensors
-  siamese_net = Model(inputs=[left_input, right_input], outputs=[prediction_overlap, prediction_orientation])
-  return siamese_net
+  siamese_net = Model(inputs=[left_input, right_input], outputs=[prediction_overlap, prediction_orientation], name='siamese_net')
+
+  return siamese_net, leg, head
 
 
 # For testing/debuging
@@ -305,5 +306,5 @@ if __name__ == "__main__":
   
   config['additional_unsymmetric_layer3a'] = True
   config['strides_layer1'] = [2, 2]
-  model = generateSiameseNetworkTemplate(input_shape, config)
+  model, _, _ = generateSiameseNetwork(input_shape, config)
   model.summary()

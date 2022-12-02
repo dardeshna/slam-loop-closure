@@ -2,11 +2,11 @@
 # Developed by Xieyuanli Chen and Thomas Läbe
 # This file is covered by the LICENSE file in the root of this project.
 # Brief: A keras generator which generates batches out of given feature volumes
-from keras.utils import Sequence
+from tensorflow import keras
 import numpy as np
 
 
-class ImagePairOverlapSequenceFeatureVolume(Sequence):
+class ImagePairOverlapSequenceFeatureVolume(keras.utils.Sequence):
     """ This class is responsible for separating feature volumes into batches. It
         can be used as keras generator object in e.g. model.fit_generator.
     """
@@ -21,12 +21,11 @@ class ImagePairOverlapSequenceFeatureVolume(Sequence):
             feature_volumes: all feature volumes of all image sets:
                              a numpy array with dimension n x w x h x chans
       """
-      self.pairs=pairs                     
+      self.pairs = pairs                     
       self.batch_size = batch_size
-      self.overlap = overlap
-      self.feature_volumes=feature_volumes
-      # number of pairs
-      self.n = overlap.size
+      self.overlap = np.zeros(len(pairs)) if overlap is None else overlap
+      self.feature_volumes = feature_volumes
+      self.n = len(pairs) # number of pairs
 
     def __len__(self):
       """ Returns number of batches in the sequence. (overwritten method)
@@ -39,9 +38,10 @@ class ImagePairOverlapSequenceFeatureVolume(Sequence):
       maxidx=(idx + 1) * self.batch_size
       if maxidx>self.n:
           maxidx=self.n
-            
+      
       batch = self.pairs[idx * self.batch_size : maxidx, :]
-      x1=self.feature_volumes[batch[:,0],:,:,:]
-      x2=self.feature_volumes[batch[:,1],:,:,:]
-      y  = self.overlap[idx * self.batch_size : maxidx]
+      x1 = np.array([self.feature_volumes[i] for i in batch[:,0]])
+      x2 = np.array([self.feature_volumes[i] for i in batch[:,1]])
+      y = self.overlap[idx * self.batch_size : maxidx]
+      
       return ( [x1,x2], y )
