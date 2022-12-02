@@ -41,7 +41,8 @@ class Infer():
       hdf5_format.load_weights_from_hdf5_group_by_name(f['model_weights'], self.network)
     else:
       print('Pre-trained weights was not found in:', pretrained_weightsfilename)
-  
+
+
   def infer_one(self, filepath1, filepath2):
     """ Infer with one input pair.
           Args:
@@ -72,7 +73,8 @@ class Infer():
     yaw_out = 180 - np.argmax(model_outputs[1], axis=1)
     
     return overlap_out, yaw_out
-  
+
+
   def infer_multiple(self, current_frame_id, reference_frame_id):
     """ Infer for loopclosing: The current frame versus old frames.
         This is a special function, because only the feature volume of the current frame
@@ -114,40 +116,8 @@ class Infer():
     
     else:
       return None
-    
-  def infer_multiple_vs_multiple(self, file_names, first_idxs, second_idxs):
-    """ Infer with multiple input pairs.
-        Args:
-          file_names: All sample scan files, for example ['000000','000001','000004'] or ['000000.bin','000001.bin','000004.bin']
-          first_idxs: indizes of the first LiDAR scans ,for example [0,1,2]
-          second_idxs: indizes of the second LiDAR scans ,for example [2,1,1]
-          Example:
-            infer_multiple(['000000','000001','000004'],[0,1,2],[2,1,1])
-            This will output the overlaps and yaws of ('000000','000004'),('000001','000001') and ('000004','000001')
-        Returns:
-            A tuple (overlaps, yaws) with two lists of the overlaps and yaw angles between the scans
-    """
-    if len(first_idxs) != len(second_idxs):
-      raise Exception('Please make sure the first_idxs and second_idxs have the same size.')
-    file_names=[os.path.basename(v).replace('.bin', '') for v in file_names]
-    self.feature_volumes=self.create_feature_volumes(file_names)
-    
-    if len(second_idxs) > 0:
-      pair_indizes = np.zeros((len(second_idxs), 2), dtype=int)
-      pair_indizes[:, 1] = first_idxs
-      pair_indizes[:, 0] = second_idxs
-      
-      test_generator_head = ImagePairOverlapSequenceFeatureVolume(pair_indizes, None, self.batch_size, np.array(self.feature_volumes))
-      model_outputs = self.head.predict(test_generator_head, verbose=1)
-      
-      overlap_out = model_outputs[0].squeeze()
-      yaw_out = 180 - np.argmax(model_outputs[1], axis=1)
-    
-      return overlap_out, yaw_out
-    
-    else:
-      return None    
-  
+
+
   def get_generator(self, filenames1, filenames2=[]):
 
     return ImagePairOverlapOrientationSequence(
@@ -170,6 +140,7 @@ class Infer():
       use_intensity=self.config['use_intensity'],
     )
 
+
   def create_feature_volumes(self, filenames):
     """ create feature volumes, thus execute the leg.
         Args:
@@ -179,6 +150,7 @@ class Infer():
     """
     
     return self.leg.predict(self.get_generator(filenames), verbose=1)
+
         
 # Test the infer functions
 if __name__ == '__main__':
@@ -206,13 +178,5 @@ if __name__ == '__main__':
   infer.infer_multiple(0, [])
   overlaps, yaws = infer.infer_multiple(1, [0])
   overlaps, yaws = infer.infer_multiple(2, [0,1])
-  print("Overlaps:  ", overlaps)
-  print("Orientations:  ", yaws)
-
-  print('Test infer many versus many ...')
-  file_names  = ['000010','000021','000022.bin']
-  first_idxs  = [0,1,2]
-  second_idxs = [2,1,1]
-  overlaps, yaws = infer.infer_multiple_vs_multiple(file_names, first_idxs, second_idxs)
   print("Overlaps:  ", overlaps)
   print("Orientations:  ", yaws)
