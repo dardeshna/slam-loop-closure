@@ -27,7 +27,9 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import yaml
-import keras
+import h5py
+from keras.saving import hdf5_format
+
 
 # To get a log file
 import importlib
@@ -37,7 +39,7 @@ importlib.reload(logging) # needed for ipython console
 import generateNet
 from ImagePairOverlapSequenceFeatureVolume import ImagePairOverlapSequenceFeatureVolume
 from ImagePairOverlapOrientationSequence import ImagePairOverlapOrientationSequence
-from overlap_orientation_npz_file2string_string_nparray import overlap_orientation_npz_file2string_string_nparray
+from shared_utils import read_network_config, overlap_orientation_npz_file2string_string_nparray
 
 # ==================== main script ============================================
 
@@ -47,24 +49,11 @@ logging.basicConfig(format='%(message)s', level=logging.DEBUG)
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
-configfilename='network.yml'
+configfilename='config/network.yml'
 if len(sys.argv)>1:
     configfilename=sys.argv[1]
 
-config = yaml.load(open(configfilename))
-
-# overlaps npz files root path
-if 'data_root_folder' in config:
-    data_root_folder = config['data_root_folder']
-else:
-    data_root_folder = ''
-
-# Image Path: Use path from yml or data_root_folder if not given
-if 'imgpath' in config:
-    imgpath=config['imgpath']
-else:
-    imgpath = data_root_folder
-    
+config = read_network_config(yaml.load(open(configfilename), yaml.Loader))
     
 # Data for testing
 # There are three possibilities:
@@ -78,69 +67,18 @@ else:
 if 'testing_seqs' in config:
     logger.info('Using complete ground truth for multiple sequences as test data ...')
     testdata_npzfiles = [config['testing_seqs']]
-    testdata_npzfiles = [os.path.join(data_root_folder, seq,
+    testdata_npzfiles = [os.path.join(config['data_root_folder'], seq,
                                       'ground_truth/ground_truth_overlap_yaw.npz') for seq in testdata_npzfiles]
 elif 'training_seqs' in config:
     logger.info('Using multiple validation npz files for test data ...')
     training_seqs = config['training_seqs']
     training_seqs = training_seqs.split()
 
-    testdata_npzfiles = [os.path.join(data_root_folder, seq, 'ground_truth/validation_set.npz') for seq in training_seqs]
+    testdata_npzfiles = [os.path.join(config['data_root_folder'], seq, 'ground_truth/validation_set.npz') for seq in training_seqs]
     
 else:
     logger.info('Using a single npz file for test data ...')
     testdata_npzfiles =[config['testdata_npzfile']]
-
-# Name of model
-modelType=config['model']['modelType']
-
-# no channels for input
-if 'use_depth' in config:
-    use_depth=config['use_depth']
-else:
-    use_depth=True
-
-if 'use_normals' in config:
-    use_normals=config['use_normals']
-else:
-    use_normals=True
-    
-if 'use_class_probabilities' in config:
-    use_class_probabilities=config['use_class_probabilities']
-else:
-    use_class_probabilities=False
-
-if 'use_class_probabilities_pca' in config:
-    use_class_probabilities_pca = config['use_class_probabilities_pca']
-else:
-    use_class_probabilities_pca = False
-
-if 'use_intensity' in config:
-  use_intensity = config['use_intensity']
-else:
-  use_intensity = False
-
-no_input_channels=0
-if use_depth:
-    no_input_channels+=1
-if use_normals:
-    no_input_channels+=3
-if use_class_probabilities:
-    if use_class_probabilities_pca:
-        no_input_channels += 3
-    else:
-        no_input_channels += 20
-if use_intensity:
-    no_input_channels += 1
-
-# Input shape of model
-inputShape = config['model']['inputShape']
-if len(inputShape)==3:
-    pass
-elif len(inputShape)==2:
-    inputShape.append(no_input_channels)
-else:
-    inputShape[2]=no_input_channels
     
 # weights from training.
 pretrained_weightsfilename=config['pretrained_weightsfilename']
@@ -165,44 +103,19 @@ no_test_pairs = config['no_test_pairs']
 
 # Create two nets: leg and head
 # -----------------------------
-legsType = config['model']['legsType']
-overlap_head = config['model']['overlap_head']
-orientation_head = config['model']['orientation_head']
 
-network_generate_method_leg  = getattr(generateNet, 'generate'+legsType)
-network_generate_method_overlap_head = getattr(generateNet, 'generate'+overlap_head)
-network_generate_method_orientation_head = getattr(generateNet, 'generate'+orientation_head)
-# Input for leg
-leg_input_l=keras.Input(inputShape)
-leg_input_r=keras.Input(inputShape)
-
-# The leg: Note that only encoded_l is actually used 
-(encoded_l, encoded_r)=network_generate_method_leg(
-    leg_input_l, leg_input_r, inputShape, config['model'], False)
-leg=keras.Model(inputs=leg_input_l,outputs=encoded_l)
-
-# Input for heads
-inputHead_l=keras.Input( encoded_l.shape[1:] )
-inputHead_r=keras.Input( encoded_r.shape[1:] )
-
-# The heads
-overlap_predict=network_generate_method_overlap_head(inputHead_l, inputHead_r, config['model'])
-orientation_predict=network_generate_method_orientation_head(inputHead_l, inputHead_r, config['model'])
-
-head=keras.Model(inputs=(inputHead_l, inputHead_r), outputs=[overlap_predict, orientation_predict])
+network, leg, head = generateNet.generateSiameseNetwork(config['model']['input_shape'], config['model'], False)
 
 logger.info("Created neural net %s for leg   with %d parameters." % 
-    (modelType, leg.count_params()))
+    ('', leg.count_params()))
 logger.info("Created neural net %s for heads with %d parameters." % 
-    (modelType, head.count_params()))
-
+    ('', head.count_params()))
 
 # Load weights from training
 if len(pretrained_weightsfilename)>0:
   logger.info("Load old weights from %s" % pretrained_weightsfilename)
-  leg.load_weights(pretrained_weightsfilename, by_name=True)
-  head.load_weights(pretrained_weightsfilename, by_name=True)
-
+  f = h5py.File(pretrained_weightsfilename)
+  hdf5_format.load_weights_from_hdf5_group_by_name(f['model_weights'], network)
 
 # Load Data (only the image filenames)
 # ------------------------------------
@@ -249,27 +162,34 @@ test_pair_idxs[:,1]=pos2
 
 network_output_size=config['model']['leg_output_width']
     
-test_generator_leg=ImagePairOverlapOrientationSequence(imgpath, test_allimgs, [],
-                                                       [test_dir for _ in range(len(test_allimgs))], [],
-                                                       np.zeros((len(test_allimgs))), np.zeros((len(test_allimgs))), network_output_size,
-                                                       batch_size, inputShape[0], inputShape[1], no_input_channels,
-                                                       use_depth=use_depth,
-                                                       use_normals=use_normals,
-                                                       use_class_probabilities=use_class_probabilities,
-                                                       use_intensity=use_intensity,
-                                                       use_class_probabilities_pca=use_class_probabilities_pca)
+test_generator_leg = ImagePairOverlapOrientationSequence(
+  image_path=config['imgpath'],
+  imgfilenames1=test_allimgs,
+  imgfilenames2=[],
+  dir1=test_dir,
+  dir2=[],
+  overlap=None,
+  orientation=None,
+  network_output_size=network_output_size,
+  batch_size=batch_size,
+  height=config['model']['input_shape'][-3],
+  width=config['model']['input_shape'][-2],
+  no_channels=config['model']['input_shape'][-1],
+  use_depth=config['use_depth'],
+  use_normals=config['use_normals'],
+  use_class_probabilities=config['use_class_probabilities'],
+  use_class_probabilities_pca=config['use_class_probabilities_pca'],
+  use_intensity=config['use_intensity'],
+)
 
-feature_volumes=leg.predict_generator(test_generator_leg, max_queue_size=10, 
-                                      workers=8, verbose=1)
+feature_volumes=leg.predict(test_generator_leg, verbose=1)
 
 # Second head for all pairs
 logger.info(" ")
 logger.info("Compute head for all %d test pairs ..." % test_pair_idxs.shape[0])
 
-test_generator_head=ImagePairOverlapSequenceFeatureVolume(test_pair_idxs, test_overlap, 
-                                                batch_size, feature_volumes)
-model_outputs=head.predict_generator(test_generator_head, max_queue_size=10,
-                                     workers=8, verbose=1)
+test_generator_head=ImagePairOverlapSequenceFeatureVolume(test_pair_idxs, test_overlap, batch_size, feature_volumes)
+model_outputs=head.predict(test_generator_head, verbose=1)
                                      
 # Evaluation
 # ----------
@@ -294,8 +214,8 @@ logger.info("  Evaluation: RMS error        : %f" % rms_error)
 
 logger.info("plot overlap histogram ...")
 n_bins=10
-plt.figure(1);
-plt.clf();
+plt.figure(1)
+plt.clf()
 plt.hist(diffs_overlap, bins=n_bins)
 plt.xlabel('error in overlap percentage')
 plt.ylabel('number of examples')
@@ -328,8 +248,8 @@ logger.info("  Evaluation: RMS error        : %f" % rms_error)
 
 logger.info("plot yaw orientation histogram ...")
 n_bins=90
-plt.figure(2);
-plt.clf();
+plt.figure(2)
+plt.clf()
 plt.hist(diffs_orientation, bins=n_bins)
 plt.xlabel('error in yaw angle estimation in degrees')
 plt.ylabel('number of examples')
@@ -354,7 +274,7 @@ np.savez(os.path.join(experiments_path,testname,"validation_results.npz"), overl
 ## Show plots
 if config['show_plots']:
   print('show plots ...')
-  plt.show();
+  plt.show()
   plt.pause(0.1)
 
 logger.info("... done.")

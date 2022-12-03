@@ -51,7 +51,7 @@ Demo4:
   # path of raw LiDAR scan folder
   scan_folder: "data/07/velodyne"
   # the folder to store the generated data
-  dst_folder: "data/preprocess_data_demo"
+  dst_folder: "data/07"
 
 
 

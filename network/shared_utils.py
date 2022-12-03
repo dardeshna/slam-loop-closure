@@ -10,10 +10,15 @@ def read_network_config(config):
         'use_class_probabilities_pca': False,
         'use_intensity': False,
         'rotate_training_data': 0,
+        'data_root_folder': '',
     }
 
     config = {**default_config, **config}
 
+    # Image Path: Use path from yml or data_root_folder if not given
+    if 'imgpath' not in config:
+        config['imgpath'] = config['data_root_folder']
+        
     # number of channels for input
     input_channels = 0
     if config['use_depth']:

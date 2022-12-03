@@ -45,7 +45,7 @@ batch_size :  16
 no_batches_in_epoch : 100000000000
 no_epochs :  100
 # No of samples for validation. If bigger than testdata, all testdata is used.
-no_test_pairs :  100000000000
+no_test_pairs :  10000
 
 
 
