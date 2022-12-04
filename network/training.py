@@ -295,7 +295,7 @@ for epoch in range(0, no_epochs):
   model_outputs = model.predict(validation_generator, verbose=1)
 
   # Statistics for tensorboard logging: plots can be grouped using path notation !
-  writer = tf.summary.FileWriter(log_dir)
+  writer = tf.summary.create_file_writer(log_dir)
   losstag0 = "Training/epoch loss"
   losstag1 = "Training/training loss"
   losstag2 = "Training/learning rate"
@@ -314,27 +314,16 @@ for epoch in range(0, no_epochs):
   logger.info("           Evaluation: max  overlap difference:   %f" % max_error)
   logger.info("           Evaluation: RMS  overlap error        : %f" % rms_error)   
 
-  summary = tf.Summary(value=[tf.Summary.Value(tag=losstag14,
-                                               simple_value=max_error)])
-  writer.add_summary(summary, epoch) 
+  tf.summary.scalar(losstag14, max_error, step=epoch)
+  tf.summary.scalar(losstag15, rms_error, step=epoch)
 
-  summary = tf.Summary(value=[tf.Summary.Value(tag=losstag15,
-                                               simple_value=rms_error)])
-  writer.add_summary(summary, epoch)
-  
   # orientation RMS for different overlap thresholds
-  summary = tf.Summary(value=[tf.Summary.Value(tag=losstag0,
-                                               simple_value=epoch_loss)])
-  writer.add_summary(summary, epoch)
+  tf.summary.scalar(losstag0, epoch_loss, step=epoch)
   
   for j in range(0, len(batchLossHistory.losses)):
-    summary = tf.Summary(value=[tf.Summary.Value(tag=losstag1,
-                                                 simple_value=batchLossHistory.losses[j])])
-    writer.add_summary(summary, j + epoch * no_batches_in_epoch)
+    tf.summary.scalar(losstag1, batchLossHistory.losses[j], step=j + epoch * no_batches_in_epoch)
   
-  summary = tf.Summary(value=[tf.Summary.Value(tag=losstag2,
-                                               simple_value=learning_rate_hist)])
-  writer.add_summary(summary, epoch)
+  tf.summary.scalar(losstag2, learning_rate_hist, step=epoch)
 
   overlap_thres = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
   
@@ -351,9 +340,7 @@ for epoch in range(0, no_epochs):
       max_error = np.max(diffs)
       mean_square_error = np.mean(diffs * diffs)
       rms_error = np.sqrt(mean_square_error)
-      summary = tf.Summary(value=[tf.Summary.Value(tag='orientation RMS different overlap thresholds/'+str(overlap_thre),
-                                                   simple_value=rms_error)])
-      writer.add_summary(summary, epoch)
+      tf.summary.scalar('orientation RMS different overlap thresholds/'+str(overlap_thre), rms_error, step=epoch)
   
   writer.flush()
   
