@@ -3,6 +3,9 @@
 # This file is covered by the LICENSE file in the root of this project.
 # Brief: This script generate the overlap and orientation combined mapping file.
 
+from utils import generate_depth
+
+
 try: from utils import *
 except: from utils import *
 
@@ -27,7 +30,7 @@ def com_overlap_yaw(scan_paths, poses, frame_idx, leg_output_width=360):
   # we calculate the ground truth for one given frame only
   # generate range projection for the given frame
   current_points = load_vertex(scan_paths[frame_idx])
-  current_range, project_points, _, _ = range_projection(current_points)
+  current_range, project_points = generate_depth(current_points)
   visible_points = project_points[current_range > 0]
   valid_num = len(visible_points)
   current_pose = poses[frame_idx]
@@ -38,7 +41,7 @@ def com_overlap_yaw(scan_paths, poses, frame_idx, leg_output_width=360):
     reference_points = load_vertex(scan_paths[reference_idx])
     reference_points_world = reference_pose.dot(reference_points.T).T
     reference_points_in_current = np.linalg.inv(current_pose).dot(reference_points_world.T).T
-    reference_range, _, _, _ = range_projection(reference_points_in_current)
+    reference_range,_ = generate_depth(reference_points_in_current)
     
     # calculate overlap
     overlap = np.count_nonzero(
