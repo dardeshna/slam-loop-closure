@@ -24,6 +24,8 @@ import logging
 import os
 import sys
 
+import h5py
+from keras.saving import hdf5_format
 import keras.optimizers
 import numpy as np
 import tensorflow as tf
@@ -35,7 +37,7 @@ importlib.reload(logging)  # needed for ipython console
 
 import generateNet
 from ImagePairOverlapOrientationSequence import ImagePairOverlapOrientationSequence
-from overlap_orientation_npz_file2string_string_nparray import overlap_orientation_npz_file2string_string_nparray
+from shared_utils import read_network_config, overlap_orientation_npz_file2string_string_nparray
 
 
 # ============ file global variables (used in functions) ======================
@@ -99,24 +101,12 @@ logging.basicConfig(format='%(message)s', level=logging.DEBUG)
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
-configfilename = 'network.yml'
+configfilename = 'config/network.yml'
 if len(sys.argv) > 1:
   configfilename = sys.argv[1]
 
-config = yaml.load(open(configfilename))
+config = read_network_config(yaml.load(open(configfilename), yaml.Loader))
 logger.info("Using configuration file %s." % configfilename)
-
-# overlaps npz files root path
-if 'data_root_folder' in config:
-  data_root_folder = config['data_root_folder']
-else:
-  data_root_folder = ''
-
-# Image Path: Use path from yml or data_root_folder if not given
-if 'imgpath' in config:
-  imgpath = config['imgpath']
-else:
-  imgpath = data_root_folder
 
 # Training sequences: If given, in every sequence directory, there should be
 # the files ground_truth/train_set.npz and ground_truth/validation_set.npz
@@ -126,68 +116,12 @@ if 'training_seqs' in config:
   training_seqs = config['training_seqs']
   training_seqs = training_seqs.split()
   
-  traindata_npzfiles = [os.path.join(data_root_folder, seq, 'ground_truth/train_set.npz') for seq in training_seqs]
-  validationdata_npzfiles = [os.path.join(data_root_folder, seq, 'ground_truth/validation_set.npz') for seq in training_seqs]
+  traindata_npzfiles = [os.path.join(config['data_root_folder'], seq, 'ground_truth/train_set.npz') for seq in training_seqs]
+  validationdata_npzfiles = [os.path.join(config['data_root_folder'], seq, 'ground_truth/validation_set.npz') for seq in training_seqs]
 else:
   logger.info('Using a single npz file for train/validation data ...')
   traindata_npzfiles = [config['traindata_npzfile']]
   validationdata_npzfiles = [config['validationdata_npzfile']]
-
-# no channels for input
-if 'use_depth' in config:
-  use_depth = config['use_depth']
-else:
-  use_depth = True
-
-if 'use_normals' in config:
-  use_normals = config['use_normals']
-else:
-  use_normals = True
-
-if 'use_class_probabilities' in config:
-  use_class_probabilities = config['use_class_probabilities']
-else:
-  use_class_probabilities = False
-
-if 'use_class_probabilities_pca' in config:
-    use_class_probabilities_pca=config['use_class_probabilities_pca']
-else:
-    use_class_probabilities_pca=False
-  
-if 'use_intensity' in config:
-  use_intensity = config['use_intensity']
-else:
-  use_intensity = False
-
-no_input_channels = 0
-if use_depth:
-  no_input_channels += 1
-  
-if use_normals:
-  no_input_channels += 3
-  
-if use_class_probabilities:
-    if use_class_probabilities_pca:
-        no_input_channels+=3
-    else:
-        no_input_channels+=20
-      
-if use_intensity:
-  no_input_channels += 1
-
-if 'rotate_training_data' in config:
-  rotate_training_data = config['rotate_training_data']
-else:
-  rotate_training_data = 0
-
-# Name of model
-modelType = config['model']['modelType']
-# Input shape of model
-inputShape = config['model']['inputShape']
-if len(inputShape) == 2:
-  inputShape.append(no_input_channels)
-else:
-  inputShape[2] = no_input_channels
 
 # weights from older training. Not used if empty
 pretrained_weightsfilename = config['pretrained_weightsfilename']
@@ -209,7 +143,7 @@ logger.addHandler(fileHandler)
 
 # weights filename: if empty, not saved
 weights_filename = os.path.join(os.path.join(experiments_path, testname),
-                                modelType + '_' + testname + '.weight')
+                                '' + '_' + testname + '.weight')
 
 # learning_rate 
 initial_lr = config['learning_rate']
@@ -224,26 +158,22 @@ no_batches_in_epoch = config['no_batches_in_epoch']
 no_epochs = config['no_epochs']
 no_test_pairs = config['no_test_pairs']
 # minimal overlap where an orientation angle could be computed
-if 'min_overlap_for_angle' in config:
-    min_overlap_for_angle = config['min_overlap_for_angle']
-else:
-    min_overlap_for_angle = 0.7
+min_overlap_for_angle = config['min_overlap_for_angle']
 
 # Tensorflow log dir
 time = datetime.datetime.now().time()
-log_dir = "%s/%s/tblog/%s_%s_%d_%d" % (experiments_path, testname, modelType, testname, time.hour, time.minute)
+log_dir = "%s/%s/tblog/%s_%s_%d_%d" % (experiments_path, testname, '', testname, time.hour, time.minute)
 if not os.path.exists(log_dir):
   os.makedirs(log_dir)
 
 
 # Create network
-network_generate_method = getattr(generateNet, 'generate' + modelType)
-model = network_generate_method(inputShape, config['model'], smallNet=False)
+model, _, _ = generateNet.generateSiameseNetwork(config['model']['input_shape'], config['model'], False)
 
 network_output_size = model.get_layer('orientation_output').output_shape[1]
 
 logger.info("Created neural net %s with %d parameters." %
-            (modelType, model.count_params()))
+            ('', model.count_params()))
 if 'legsType' in config['model']:
   logger.info("  Used net for legs: %s" % config['model']['legsType'])
 if 'headType' in config['model']:
@@ -263,7 +193,8 @@ logger.info("compiled model with learning_rate=%f, lr_alpha=%f, momentum=%f" %
 
 if len(pretrained_weightsfilename) > 0:
   logger.info("Load old weights from %s" % pretrained_weightsfilename)
-  model.load_weights(pretrained_weightsfilename)
+  f = h5py.File(pretrained_weightsfilename)
+  hdf5_format.load_weights_from_hdf5_group_by_name(f['model_weights'], model)
   
 print(model.summary())
 
@@ -305,41 +236,52 @@ logger.info("Training loop, saving weights to %s" % weights_filename)
 logger.info("  batch size is           : %d" % batch_size)
 logger.info("  number of training pairs: %d" % n)
 logger.info("  number of test pairs    : %d" % no_test_pairs)
-if rotate_training_data == 0:
+if config['rotate_training_data'] == 0:
   logger.info("  NO rotation of training data")
-if rotate_training_data == 1:
+if config['rotate_training_data'] == 1:
   logger.info("  rotation of training data, same sequence for every epoch")
-if rotate_training_data == 2:
+if config['rotate_training_data'] == 2:
   logger.info("  rotation of training data, different sequence for every epoch")
 
-train_generator = ImagePairOverlapOrientationSequence(imgpath,
-                                                      train_imgf1, train_imgf2, train_dir1, train_dir2,
-                                                      train_overlap, train_orientation, network_output_size,
-                                                      batch_size, inputShape[0], inputShape[1], no_input_channels,
-                                                      use_depth=use_depth,
-                                                      use_normals=use_normals,
-                                                      use_class_probabilities=use_class_probabilities,
-                                                      use_intensity=use_intensity,
-                                                      use_class_probabilities_pca=use_class_probabilities_pca,
-                                                      rotate_data=rotate_training_data)
-validation_generator = ImagePairOverlapOrientationSequence(imgpath,
-                                          validation_imgf1, validation_imgf2, validation_dir1, validation_dir2, validation_overlap,
-                                          validation_orientation, network_output_size,
-                                          batch_size, inputShape[0], inputShape[1], no_input_channels,
-                                          use_depth=use_depth,
-                                          use_normals=use_normals,
-                                          use_class_probabilities=use_class_probabilities,
-                                          use_intensity=use_intensity,
-                                          use_class_probabilities_pca=use_class_probabilities_pca)
+train_generator = ImagePairOverlapOrientationSequence(
+  config['imgpath'],
+  train_imgf1, train_imgf2, train_dir1, train_dir2,
+  train_overlap, train_orientation, network_output_size,
+  batch_size,
+  config['model']['input_shape'][-3],
+  config['model']['input_shape'][-2],
+  config['model']['input_shape'][-1],
+  use_depth=config['use_depth'],
+  use_normals=config['use_normals'],
+  use_class_probabilities=config['use_class_probabilities'],
+  use_class_probabilities_pca=config['use_class_probabilities_pca'],
+  use_intensity=config['use_intensity'],
+  rotate_data=config['rotate_training_data'],
+)
+
+validation_generator = ImagePairOverlapOrientationSequence(
+  config['imgpath'],
+  validation_imgf1, validation_imgf2, validation_dir1, validation_dir2, validation_overlap,
+  validation_orientation, network_output_size,
+  batch_size,
+  config['model']['input_shape'][-3],
+  config['model']['input_shape'][-2],
+  config['model']['input_shape'][-1],
+  use_depth=config['use_depth'],
+  use_normals=config['use_normals'],
+  use_class_probabilities=config['use_class_probabilities'],
+  use_class_probabilities_pca=config['use_class_probabilities_pca'],
+  use_intensity=config['use_intensity'],
+)
 
 batchLossHistory = LossHistory()
 for epoch in range(0, no_epochs):
-  history = model.fit_generator(train_generator,
-                                initial_epoch=epoch, epochs=epoch + 1,
-                                callbacks=[batchLossHistory, learning_rate],
-                                max_queue_size=10, workers=4,
-                                use_multiprocessing=False
-                                )
+  history = model.fit(
+    train_generator,
+    initial_epoch=epoch,
+    epochs=epoch + 1,
+    callbacks=[batchLossHistory, learning_rate],
+  )
   epoch_loss = history.history['loss'][0]
   learning_rate_hist = K.eval(model.optimizer.lr)
   
@@ -350,8 +292,7 @@ for epoch in range(0, no_epochs):
   
   # Evaluation on test data
   logger.info("  Evaluation on test data ...")
-  model_outputs = model.predict_generator(validation_generator, max_queue_size=10,
-                                          workers=4, use_multiprocessing=False, verbose=1)
+  model_outputs = model.predict(validation_generator, verbose=1)
 
   # Statistics for tensorboard logging: plots can be grouped using path notation !
   writer = tf.summary.FileWriter(log_dir)

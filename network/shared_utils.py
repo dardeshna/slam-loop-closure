@@ -10,7 +10,9 @@ def read_network_config(config):
         'use_class_probabilities_pca': False,
         'use_intensity': False,
         'rotate_training_data': 0,
+        'min_overlap_for_angle': 0.7,
         'data_root_folder': '',
+        'pretrained_weightsfilename': '',
     }
 
     config = {**default_config, **config}

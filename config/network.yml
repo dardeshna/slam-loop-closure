@@ -6,7 +6,7 @@
 
 # Path where all experiments are stored. Data of current experiment
 # will be in experiments_path/testname
-experiments_path: "/tmp"
+experiments_path: "tmp/"
 
 # String which defines experiment
 testname: "experiment_test1"
