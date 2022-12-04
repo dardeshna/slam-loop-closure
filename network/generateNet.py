@@ -231,13 +231,12 @@ def generateSiameseNetwork(input_shape, config={}, smallNet=False):
 
 # For testing/debuging
 if __name__ == "__main__":
-  input_shape = (64, 900, 16)
-  config = {}
-  config['legsType'] = '360OutputkLegs'
-  config['overlap_head'] = 'DeltaLayerConv1NetworkHead'
-  config['orientation_head'] = 'CorrelationHead'
+
+  import yaml
+  from shared_utils import read_network_config
+
+  config = read_network_config(yaml.load(open('config/network.yml'), yaml.Loader))
   
-  config['additional_unsymmetric_layer3a'] = True
-  config['strides_layer1'] = [2, 2]
-  model, _, _ = generateSiameseNetwork(input_shape, config)
+  model, _, _ = generateSiameseNetwork(config['model']['input_shape'], config['model'])
+  
   model.summary()
