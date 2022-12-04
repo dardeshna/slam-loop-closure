@@ -82,47 +82,33 @@ def generateDeltaLayerConv1NetworkHead(encoded_l, encoded_r, config={}):
                           thus the last tensor of the leg
     config: dictionary of configuration parameters, usually from a yaml file
             All keys have default arguments, so they need not to be present
-            Current parameters:
-                conv1NetworkHead_conv1size: The size s of the 1xs and
-                                            sx1 convolutions directly done
-                                            for the DeltaLayer (which computes
-                                            all possible differences of the
-                                            feature volumnes). Default:
-                                            15 (to be consistent with old
-                                            versions of this code).
-                                            This size should be actually the
-                                            number of columns of the feature
-                                            volume.
+            
   Returns:
     the final tensor of the head which is 1x1, the overlap percentage
     0.0-1.0
   """
-  # default parameters
-  if not 'conv1NetworkHead_conv1size' in config:
-    config['conv1NetworkHead_conv1size'] = 15
 
   # combine the two legs
   diff = DeltaLayer(encoded_l, encoded_r)
 
   # densify the information across feature maps
-  kernel_regularizer = None
-  combinedconv1 = Conv2D(64, (1, config['conv1NetworkHead_conv1size']),
-                         strides=(1, config['conv1NetworkHead_conv1size']),
-                         activation='linear',
-                         kernel_regularizer=kernel_regularizer, name="c_conv1")
-  combined2 = combinedconv1(diff)
 
-  combinedconv2 = Conv2D(128, (config['conv1NetworkHead_conv1size'], 1),
-                         strides=(config['conv1NetworkHead_conv1size'], 1),
-                         activation='relu',
-                         kernel_regularizer=kernel_regularizer, name="c_conv2")
-  combined3 = combinedconv2(combined2)
+  default_kwargs = {
+    'activation' : 'relu',
+    'kernel_regularizer': None,
+  }
 
-  combinedconv3 = Conv2D(256, (3, 3), activation='relu',
-                         kernel_regularizer=kernel_regularizer, name="c_conv3")
-  combined4 = combinedconv3(combined3)
+  i = 1
+  for layer in config['head_architecture']:
+    if 'name' not in layer:
+      layer['name'] = f'c_conv{i}'
+      i += 1
+    
+    kwargs = {**default_kwargs, **layer}
+    conv = Conv2D(**kwargs)
+    diff = conv(diff)
 
-  flattened = Flatten()(combined4)
+  flattened = Flatten()(diff)
 
   prediction = Dense(1, activation='sigmoid', name='overlap_output')(flattened)
 
@@ -140,22 +126,11 @@ def generate360OutputkLegs(left_input, right_input, config={},
                              of the two legs
     config: dictionary of configuration parameters, usually from a yaml file
             All keys have default arguments, so they need not to be present
-            Current parameters:
-            - strides_layer1: Stride of first conv layer, default (2,2)
-            - additional_unsymmetric_layer3a: Boolean. If true an additional layer 3a
-                                  will be added with stride(1,2) after layer 3
-                                  Default: False
     smallNet: a boolean. If true, a very tiny net is defined. Default: False
 
   Returns:
     a tuple with two tensors: the left and right feature volume
   """
-
-  # default values for configuration parameters
-  if not 'strides_layer1' in config:
-    config['strides_layer1'] = (2, 2)
-  if not 'additional_unsymmetric_layer3a' in config:
-    config['additional_unsymmetric_layer3a'] = False
 
   # build convnet to use in each siamese 'leg'
   if (smallNet):
@@ -165,68 +140,26 @@ def generate360OutputkLegs(left_input, right_input, config={},
     l = finalconv(left_input)
     r = finalconv(right_input)
     return (l, r)
+    
   else:
   
-    # kernel_regularizer=l2(1e-8)
-    kernel_regularizer = None
-    # conv1=Conv2D(64, (10, 10), activation='relu', input_shape=input_shape,
-    conv1 = Conv2D(16, (5, 15), strides=config['strides_layer1'], activation='relu',
-                   kernel_regularizer=kernel_regularizer, name="s_conv1", trainable=trainable)
-    l = conv1(left_input)
-    r = conv1(right_input)
-  
-    # conv2=Conv2D(128, (7, 7), activation='relu',
-    conv2 = Conv2D(32, (3, 15), strides=(2, 1), activation='relu',
-                   kernel_regularizer=kernel_regularizer, name="s_conv2", trainable=trainable)
-    l = conv2(l)
-    r = conv2(r)
-  
-    # conv3=Conv2D(128, (4, 4), activation='relu',
-    conv3 = Conv2D(64, (3, 15), strides=(2, 1), activation='relu',
-                   kernel_regularizer=kernel_regularizer, name="s_conv3", trainable=trainable)
-    l = conv3(l)
-    r = conv3(r)
-  
-    if config['additional_unsymmetric_layer3a']:
-      conv3a = Conv2D(64, (3, 12), strides=(2, 1), activation='relu',
-                      kernel_regularizer=kernel_regularizer, name="s_conv3a", trainable=trainable)
-      l = conv3a(l)
-      r = conv3a(r)
-  
-    conv4 = Conv2D(128, (2, 9), strides=(2, 1), activation='relu', name="s_conv4",
-                   kernel_regularizer=kernel_regularizer, trainable=trainable)
-    l = conv4(l)
-    r = conv4(r)
-  
-    conv5 = Conv2D(128, (1, 9), strides=(1, 1), activation='relu', name="s_conv5",
-                   kernel_regularizer=kernel_regularizer, trainable=trainable)
-    l = conv5(l)
-    r = conv5(r)
-  
-    conv6 = Conv2D(128, (1, 9), strides=(1, 1), activation='relu', name="s_conv6",
-                   kernel_regularizer=kernel_regularizer, trainable=trainable)
-    l = conv6(l)
-    r = conv6(r)
-  
-    conv7 = Conv2D(128, (1, 9), strides=(1, 1), activation='relu', name="s_conv7",
-                   kernel_regularizer=kernel_regularizer, trainable=trainable)
-    l = conv7(l)
-    r = conv7(r)
-  
-    conv8 = Conv2D(128, (1, 7), strides=(1, 1), activation='relu', name="s_conv8",
-                   kernel_regularizer=kernel_regularizer, trainable=trainable)
-    l = conv8(l)
-    r = conv8(r)
-  
-    conv9 = Conv2D(128, (1, 5), strides=(1, 1), activation='relu', name="s_conv9",
-                   kernel_regularizer=kernel_regularizer, trainable=trainable)
-    l = conv9(l)
-    r = conv9(r)
-  
-    conv10 = Conv2D(128, (1, 3), strides=(1, 1), activation='relu', name="s_conv10",
-                    kernel_regularizer=kernel_regularizer, trainable=trainable)
-    l = conv10(l)
-    r = conv10(r)
+    default_kwargs = {
+      'activation' : 'relu',
+      'kernel_regularizer': None, # l2(1e-8)
+      'trainable': trainable,
+    }
+
+    l, r = left_input, right_input
+
+    i = 1
+    for layer in config['leg_architecture']:
+      if 'name' not in layer:
+        layer['name'] = f's_conv{i}'
+        i += 1
+      
+      kwargs = {**default_kwargs, **layer}
+      conv = Conv2D(**kwargs)
+      l, r = conv(l), conv(r)
   
     return (l, r)
 
