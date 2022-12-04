@@ -49,7 +49,7 @@ def gen_depth_data(scan_folder, dst_folder, normalize=False):
   
 
 if __name__ == '__main__':
-  scan_folder = '/folder/of/lidar/scans'
-  dst_folder = '/folder/to/store/depth/data'
+  scan_folder = './data/2011_09_26/2011_09_26_drive_0005_sync/'
+  dst_folder = './data'
   
   depth_data = gen_depth_data(scan_folder, dst_folder)

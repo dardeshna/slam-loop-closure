@@ -1,7 +1,8 @@
+import yaml
 import os
 import sys
 import numpy as np
-import yaml
+
 import h5py
 from keras.saving import hdf5_format
 

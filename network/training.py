@@ -285,6 +285,7 @@ for epoch in range(0, no_epochs):
   epoch_loss = history.history['loss'][0]
   learning_rate_hist = K.eval(model.optimizer.lr)
   
+
   # Saving weights
   if len(weights_filename) > 0:
     logger.info("                  saving model weights ...")

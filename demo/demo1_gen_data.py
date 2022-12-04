@@ -10,9 +10,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../utils'))
 import matplotlib.pyplot as plt
 from utils import *
 import gen_depth_data as gen_depth
-import gen_normal_data as gen_normal
-import gen_intensity_data as gen_intensity
-import gen_semantic_data as gen_semantics
+import gen_prob as gen_normal
+
 
 
 def show_images(depth_data, normal_data, intensity_data, semantic_data):
@@ -66,7 +65,7 @@ if __name__ == '__main__':
   if len(sys.argv) > 1:
     config_filename = sys.argv[1]
   
-  config = yaml.load(open(config_filename))
+  config = yaml.load(open(config_filename),yaml.Loader)
   
   # set the related parameters
   scan_folder = config['Demo1']["scan_folder"]
