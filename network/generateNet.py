@@ -1,9 +1,9 @@
 import tensorflow as tf
 from keras import backend as K
-from keras.layers import Input, Conv2D, Dense, Flatten, Reshape, Lambda, Layer
+from keras.layers import Input, Conv2D, Dense, Flatten, Reshape, Lambda, Layer, MaxPool2D
 from keras.models import Model
 from keras.regularizers import l2
-
+from collections import defaultdict
 
 class NormalizedCorrelation2D(Layer):
 
@@ -67,10 +67,7 @@ def DeltaLayer(encoded_l, encoded_r):
   reshaper = Reshape((1, w * h, chan))
   reshaped_r = reshaper(encoded_r)
   
-  tiled_l = Lambda(lambda x: K.tile(x, [1, 1, w * h, 1]))(reshaped_l)
-  tiled_r = Lambda(lambda x: K.tile(x, [1, w * h, 1, 1]))(reshaped_r)
-  
-  diff = Lambda(lambda x: K.abs(x[0] - x[1]))([tiled_l, tiled_r])
+  diff = Lambda(lambda x: K.abs(x[0] - x[1]))([reshaped_l, reshaped_r])
   
   return diff
 
@@ -143,23 +140,33 @@ def generate360OutputkLegs(left_input, right_input, config={},
     
   else:
   
-    default_kwargs = {
-      'activation' : 'relu',
-      'kernel_regularizer': None, # l2(1e-8)
-      'trainable': trainable,
-    }
+    defaults = {
+      'conv' : (Conv2D, {
+        'activation' : 'relu',
+        'kernel_regularizer': None, # l2(1e-8)
+        'trainable': trainable,
+      }),
+      'maxpool' : (MaxPool2D, {
 
+      })
+    }
+    counters = defaultdict(lambda: 1)
+    
     l, r = left_input, right_input
 
-    i = 1
-    for layer in config['leg_architecture']:
-      if 'name' not in layer:
-        layer['name'] = f's_conv{i}'
-        i += 1
-      
-      kwargs = {**default_kwargs, **layer}
-      conv = Conv2D(**kwargs)
-      l, r = conv(l), conv(r)
+    for entry in config['leg_architecture']:
+      for layer_type, kwargs in entry.items():
+
+        if 'name' not in kwargs:
+          kwargs['name'] = f's_{layer_type}{counters[layer_type]}'
+          counters[layer_type] += 1
+        
+        layer_class = defaults[layer_type][0]
+        default_kwargs = defaults[layer_type][1]
+
+        kwargs = {**default_kwargs, **kwargs}
+        layer = layer_class(**kwargs)
+        l, r = layer(l), layer(r)
   
     return (l, r)
 

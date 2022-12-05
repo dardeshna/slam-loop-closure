@@ -91,7 +91,7 @@ def my_entropy(y_true, y_pred):
   """      
   y_true = K.greater(y_true, min_overlap_for_angle)
   y_true = K.cast(y_true, dtype='float32')
-  return tf.nn.weighted_cross_entropy_with_logits(y_true, y_pred, network_output_size, name='loss')
+  return tf.nn.weighted_cross_entropy_with_logits(y_true, y_pred, 1, name='loss')
 
 
 # ==================== main script ============================================
@@ -193,8 +193,13 @@ logger.info("compiled model with learning_rate=%f, lr_alpha=%f, momentum=%f" %
 
 if len(pretrained_weightsfilename) > 0:
   logger.info("Load old weights from %s" % pretrained_weightsfilename)
-  f = h5py.File(pretrained_weightsfilename)
-  hdf5_format.load_weights_from_hdf5_group_by_name(f['model_weights'], model)
+  if 'tmp' in pretrained_weightsfilename:
+    model.load_weights(pretrained_weightsfilename)
+    print("LOADED WEIGHTS")
+    pass
+  else:
+    f = h5py.File(pretrained_weightsfilename)
+    hdf5_format.load_weights_from_hdf5_group_by_name(f['model_weights'], model)
   
 print(model.summary())
 
@@ -274,18 +279,25 @@ validation_generator = ImagePairOverlapOrientationSequence(
   use_intensity=config['use_intensity'],
 )
 
+writer = tf.summary.create_file_writer(log_dir)
+
+# tboard_callback = tf.keras.callbacks.TensorBoard(
+#   log_dir = log_dir,
+#   histogram_freq = 1,
+#   profile_batch = '50,70'
+# )
+
 batchLossHistory = LossHistory()
 for epoch in range(0, no_epochs):
   history = model.fit(
     train_generator,
     initial_epoch=epoch,
     epochs=epoch + 1,
-    callbacks=[batchLossHistory, learning_rate],
+    callbacks=[batchLossHistory, learning_rate],# tboard_callback],
   )
   epoch_loss = history.history['loss'][0]
   learning_rate_hist = K.eval(model.optimizer.lr)
   
-
   # Saving weights
   if len(weights_filename) > 0:
     logger.info("                  saving model weights ...")
@@ -296,7 +308,6 @@ for epoch in range(0, no_epochs):
   model_outputs = model.predict(validation_generator, verbose=1)
 
   # Statistics for tensorboard logging: plots can be grouped using path notation !
-  writer = tf.summary.create_file_writer(log_dir)
   losstag0 = "Training/epoch loss"
   losstag1 = "Training/training loss"
   losstag2 = "Training/learning rate"
@@ -315,33 +326,35 @@ for epoch in range(0, no_epochs):
   logger.info("           Evaluation: max  overlap difference:   %f" % max_error)
   logger.info("           Evaluation: RMS  overlap error        : %f" % rms_error)   
 
-  tf.summary.scalar(losstag14, max_error, step=epoch)
-  tf.summary.scalar(losstag15, rms_error, step=epoch)
+  with writer.as_default():
 
-  # orientation RMS for different overlap thresholds
-  tf.summary.scalar(losstag0, epoch_loss, step=epoch)
-  
-  for j in range(0, len(batchLossHistory.losses)):
-    tf.summary.scalar(losstag1, batchLossHistory.losses[j], step=j + epoch * no_batches_in_epoch)
-  
-  tf.summary.scalar(losstag2, learning_rate_hist, step=epoch)
+    tf.summary.scalar(losstag14, max_error, step=epoch)
+    tf.summary.scalar(losstag15, rms_error, step=epoch)
+
+    # orientation RMS for different overlap thresholds
+    tf.summary.scalar(losstag0, epoch_loss, step=epoch)
+    
+    for j in range(0, len(batchLossHistory.losses)):
+      tf.summary.scalar(losstag1, batchLossHistory.losses[j], step=j + epoch * no_batches_in_epoch)
+    
+    tf.summary.scalar(losstag2, learning_rate_hist, step=epoch)
 
   overlap_thres = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
   
   for overlap_thre in overlap_thres:
     diffs = []
     for idx in range(len(model_outputs[1])):
-      angle = np.argmax(model_outputs[1][idx])
+      angle = np.argmax(model_outputs[1][idx])*(360//network_output_size)
       overlap = np.max(model_outputs[0][idx])
       if overlap > overlap_thre:
-        diffs.append(min(abs(angle - validation_orientation[idx]),
-                   network_output_size - abs(angle - validation_orientation[idx])))
+        diffs.append(abs((angle - validation_orientation[idx] + 180) % 360 - 180))
     diffs = np.array(diffs)
     if diffs.any():
       max_error = np.max(diffs)
       mean_square_error = np.mean(diffs * diffs)
       rms_error = np.sqrt(mean_square_error)
-      tf.summary.scalar('orientation RMS different overlap thresholds/'+str(overlap_thre), rms_error, step=epoch)
+      with writer.as_default():
+        tf.summary.scalar('orientation RMS different overlap thresholds/'+str(overlap_thre), rms_error, step=epoch)
   
   writer.flush()
   

@@ -114,8 +114,13 @@ logger.info("Created neural net %s for heads with %d parameters." %
 # Load weights from training
 if len(pretrained_weightsfilename)>0:
   logger.info("Load old weights from %s" % pretrained_weightsfilename)
-  f = h5py.File(pretrained_weightsfilename)
-  hdf5_format.load_weights_from_hdf5_group_by_name(f['model_weights'], network)
+  if 'tmp' in pretrained_weightsfilename:
+    network.load_weights(pretrained_weightsfilename)
+    print("LOADED WEIGHTS")
+    pass
+  else:
+    f = h5py.File(pretrained_weightsfilename)
+    hdf5_format.load_weights_from_hdf5_group_by_name(f['model_weights'], network)
 
 # Load Data (only the image filenames)
 # ------------------------------------
@@ -221,10 +226,9 @@ plt.xlabel('error in overlap percentage')
 plt.ylabel('number of examples')
 plt.savefig(os.path.join(experiments_path,testname,'overlap_error_histogram.png'))
 
-network_orientation_output=np.squeeze(np.argmax(model_outputs[1], axis=1))
+network_orientation_output=np.squeeze(np.argmax(model_outputs[1], axis=1))*(360//network_output_size)
 # The following takes the circular behaviour of angles into account !
-diffs_orientation=np.minimum(abs(network_orientation_output-test_orientation),
-      network_output_size - abs(network_orientation_output-test_orientation))
+diffs_orientation=np.abs((network_orientation_output - test_orientation + 180) % 360 - 180)
 diffs_orientation=diffs_orientation[test_overlap>0.7]
 mean_diff=np.mean(diffs_orientation)
 mean_square_error=np.mean(diffs_orientation*diffs_orientation)

@@ -9,10 +9,10 @@
 experiments_path: "tmp/"
 
 # String which defines experiment
-testname: "overlapnet_single_sequence_07"
+testname: "minioverlapnet_05_09_gen_data"
 
 # weights from older training. Not used if empty
-pretrained_weightsfilename: "data/model_geo.weight"
+pretrained_weightsfilename: "tmp/minioverlapnet_single_sequence_07/_minioverlapnet_single_sequence_07.weight/variables/variables"
 
 # What input to use ?
 # Be aware that the networks will have different number of weights, thus
@@ -27,13 +27,13 @@ use_intensity: False               # default: False if parameter not there
 # Train and test data
 #
 # the folder of dataset
-data_root_folder: "data/"
+data_root_folder: "data/sequences"
 
 # use multiple seqs for training, for testing phase please disable it
-training_seqs: "07"   
+training_seqs: "05 06 07 08 09"   
 
 # use multiple seqs for testing, for training phase please disable it
-testing_seqs: "07"
+testing_seqs: "00"
 
 # seq label for inferring
 infer_seqs: "07"
@@ -42,12 +42,12 @@ batch_size :  32
 # No of batches per epoch, thus the actual used train data is 
 # batch_size*no_batches_in_epoch. 
 # If bigger than train/test data, all train/test data will be used.
-no_batches_in_epoch : 100000000000
+no_batches_in_epoch : 2000
 no_epochs :  100
 # No of samples for validation. If bigger than testdata, all testdata is used.
-no_test_pairs :  100000000000
+no_test_pairs :  7000
 
-
+rotate_training_data : 2
 
 # ----------------------------------------------
 # Training parameters
@@ -68,29 +68,30 @@ model:
   input_shape: [64,900]
 
   # leg output width
-  leg_output_width: 360
+  leg_output_width: 180
 
   # architecture for leg conv layers
   # parameters are passed directly to Conv2D()
   leg_architecture:
-    - 'conv' : {filters: 16, kernel_size: [5,15], strides: [2,2]}
-    - 'conv' : {filters: 32, kernel_size: [3,15], strides: [2,1]}
-    - 'conv' : {filters: 64, kernel_size: [3,15], strides: [2,1]}
-    - 'conv' : {filters: 64, kernel_size: [3,12], strides: [2,1], name: 's_conv3a'}
-    - 'conv' : {filters: 128, kernel_size: [2,9], strides: [2,1]}
-    - 'conv' : {filters: 128, kernel_size: [1,9], strides: [1,1]}
-    - 'conv' : {filters: 128, kernel_size: [1,9], strides: [1,1]}
-    - 'conv' : {filters: 128, kernel_size: [1,9], strides: [1,1]}
-    - 'conv' : {filters: 128, kernel_size: [1,7], strides: [1,1]}
-    - 'conv' : {filters: 128, kernel_size: [1,5], strides: [1,1]}
-    - 'conv' : {filters: 128, kernel_size: [1,3], strides: [1,1]}
-  
+    - 'maxpool' : {pool_size: [1,2]}
+    - 'conv' : {filters: 16, kernel_size: [5,9], strides: [2,2]}
+    - 'conv' : {filters: 32, kernel_size: [3,9], strides: [2,1]}
+    - 'conv' : {filters: 32, kernel_size: [3,8], strides: [1,1]}
+    - 'maxpool' : {pool_size: [2,1]}
+    - 'conv' : {filters: 64, kernel_size: [3,7], strides: [1,1]}
+    - 'maxpool' : {pool_size: [2,1]}
+    - 'conv' : {filters: 64, kernel_size: [1,7], strides: [1,1]}
+    - 'maxpool' : {pool_size: [2,1]}
+    - 'conv' : {filters: 64, kernel_size: [1,7], strides: [1,1]}
+    - 'conv' : {filters: 64, kernel_size: [1,5], strides: [1,1]}
+    - 'conv' : {filters: 64, kernel_size: [1,5], strides: [1,1]}
+
   # architecture for head conv layers
   # parameters are passed directly to Conv2D()
   head_architecture:
-    - {filters: 64, kernel_size: [1,15], strides: [1,15], activation: 'linear'}
-    - {filters: 128, kernel_size: [15,1], strides: [15,1]}
-    - {filters: 256, kernel_size: [3,3]}
+    - {filters: 64, kernel_size: [1,7], strides: [1,7], activation: 'linear'}
+    - {filters: 64, kernel_size: [7,1], strides: [7,1]}
+    - {filters: 128, kernel_size: [3,3]}
   
 # ----------------------------------------------
 # Special settings for validation

@@ -72,10 +72,8 @@ class ImagePairOverlapOrientationSequence(keras.utils.Sequence):
     self.rotate_data = rotate_data
     self.do_rotation = False
     if self.rotate_data > 0:
-      random.seed(1234)
       self.do_rotation = True
-      self.random_rotate = np.array([
-        random.randint(0, self.width) for i in range(0, self.n)])
+      self.random_rotate = np.random.randint(0, self.width, size=(self.n,))
   
   def __len__(self):
     """ Returns number of batches in the sequence. (overwritten method)
@@ -87,8 +85,7 @@ class ImagePairOverlapOrientationSequence(keras.utils.Sequence):
     """
     if idx == 0 and self.rotate_data == 2:
       # new random values
-      self.random_rotate = np.array([
-        random.randint(0, self.width) for i in range(0, self.n)])
+      self.random_rotate = np.random.randint(0, self.width, size=(self.n,))
     
     maxidx = (idx + 1) * self.batch_size
     size = self.batch_size
@@ -115,7 +112,7 @@ class ImagePairOverlapOrientationSequence(keras.utils.Sequence):
     
     for idx in range(len(y_overlap)):
       y_item = np.zeros(self.network_output_size)
-      y_item[int(y_orientation[idx])] = y_overlap[idx]
+      y_item[int(y_orientation[idx]/360*self.network_output_size)] = y_overlap[idx]
       y.append(y_item)
     
     y = np.asarray(y)
