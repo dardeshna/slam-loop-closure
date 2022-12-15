@@ -9,7 +9,7 @@
 experiments_path: "tmp/"
 
 # String which defines experiment
-testname: "overlapnet_single_sequence_07"
+testname: "overlapnet_test_00"
 
 # weights from older training. Not used if empty
 pretrained_weightsfilename: "data/model_geo.weight"
@@ -27,16 +27,18 @@ use_intensity: False               # default: False if parameter not there
 # Train and test data
 #
 # the folder of dataset
-data_root_folder: "data/"
+data_root_folder: "data/sequences"
 
 # use multiple seqs for training, for testing phase please disable it
-training_seqs: "07"   
+# training_seqs: "07"   
 
 # use multiple seqs for testing, for training phase please disable it
-testing_seqs: "07"
+# testing_seqs: "07"
 
 # seq label for inferring
-infer_seqs: "07"
+# infer_seqs: "07"
+
+testdata_npzfile: 'data/sequences/00/ground_truth/train_set.npz'
 
 batch_size :  32
 # No of batches per epoch, thus the actual used train data is 

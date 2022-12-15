@@ -242,7 +242,7 @@ if __name__ == "__main__":
   import yaml
   from shared_utils import read_network_config
 
-  config = read_network_config(yaml.load(open('config/network.yml'), yaml.Loader))
+  config = read_network_config(yaml.load(open('config/mini_network.yml'), yaml.Loader))
   
   model, _, _ = generateSiameseNetwork(config['model']['input_shape'], config['model'])
   

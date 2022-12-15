@@ -9,10 +9,10 @@
 experiments_path: "tmp/"
 
 # String which defines experiment
-testname: "minioverlapnet_05_09_gen_data"
+testname: "minioverlapnet_05_09_gen_data_v3_test_00"
 
 # weights from older training. Not used if empty
-pretrained_weightsfilename: "tmp/minioverlapnet_single_sequence_07/_minioverlapnet_single_sequence_07.weight/variables/variables"
+pretrained_weightsfilename: "tmp/minioverlapnet_05_09_gen_data_v3/_minioverlapnet_05_09_gen_data_v3.weight/variables/variables"
 
 # What input to use ?
 # Be aware that the networks will have different number of weights, thus
@@ -30,24 +30,25 @@ use_intensity: False               # default: False if parameter not there
 data_root_folder: "data/sequences"
 
 # use multiple seqs for training, for testing phase please disable it
-training_seqs: "05 06 07 08 09"   
+# training_seqs: "05 06 07 08 09"
 
 # use multiple seqs for testing, for training phase please disable it
-testing_seqs: "00"
+# testing_seqs: "00"
 
 # seq label for inferring
-infer_seqs: "07"
+# infer_seqs: "07"
+
+testdata_npzfile: 'data/sequences/00/ground_truth/train_set.npz'
 
 batch_size :  32
 # No of batches per epoch, thus the actual used train data is 
 # batch_size*no_batches_in_epoch. 
 # If bigger than train/test data, all train/test data will be used.
-no_batches_in_epoch : 2000
+no_batches_in_epoch : 100000000000
 no_epochs :  100
 # No of samples for validation. If bigger than testdata, all testdata is used.
-no_test_pairs :  7000
+no_test_pairs :  100000000000
 
-rotate_training_data : 2
 
 # ----------------------------------------------
 # Training parameters
